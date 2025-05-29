@@ -114,6 +114,20 @@ def get_events(url):
 
     return event_links
 
+
+def save_to_csv(file_path, rows, header=None):
+    try:
+        with open(file_path, 'x', newline='') as f:
+            writer = csv.writer(f)
+            if header:
+                writer.writerow(header)
+    except FileExistsError:
+        pass
+
+    with open(file_path, 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
 events = get_events("http://ufcstats.com/statistics/events/completed")
 # for link in events:
 #     print(f"{link}")    
