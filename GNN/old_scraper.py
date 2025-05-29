@@ -99,28 +99,47 @@ def parse_fighter(url):
         print(f"[ERROR] Failed to parse: {e}")
         return None
 
+def get_events(url):
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    event_links = []
+    rows = soup.select('tr.b-statistics__table-row')
+    for row in rows:
+        a_tag = row.select_one('a.b-link.b-link_style_black')
+        if a_tag and 'href' in a_tag.attrs:
+            event_name = a_tag.text.strip()
+            event_url = a_tag['href'].strip()
+            event_links.append(event_url)
+
+    return event_links
+
+events = get_events("http://ufcstats.com/statistics/events/completed")
+# for link in events:
+#     print(f"{link}")    
 
 # stats = messwithpart("http://ufcstats.com/event-details/2a898bf9fb7710b3")
 # print(stats)
 # testmatchup = [['http://ufcstats.com/fighter-details/480779d7f9a424d3', 'http://ufcstats.com/fighter-details/94426bb170c88115']]
-matchups = getmatchups("http://ufcstats.com/event-details/8ad022dd81224f61")
+# matchups = getmatchups("http://ufcstats.com/event-details/8ad022dd81224f61")
 data = []
 
-
-for matchup in matchups:
-    print(matchup)
-    fightervector = []
-    for fighter in matchup:
-        vec = parse_fighter(fighter)
-        if vec is None:
-            break
-        fightervector.append(vec)
-    
-    if len(fightervector) == 2:
-        row = fightervector[0] + fightervector[1] + [1]
-        data.append(row)
-        reversed_row = fightervector[1] + fightervector[0] + [0]
-        data.append(reversed_row)
+for event in events:
+    matchups = getmatchups(event)
+    for matchup in matchups:
+        print(matchup)
+        fightervector = []
+        for fighter in matchup:
+            vec = parse_fighter(fighter)
+            if vec is None:
+                break
+            fightervector.append(vec)
+        
+        if len(fightervector) == 2:
+            row = fightervector[0] + fightervector[1] + [1]
+            data.append(row)
+            reversed_row = fightervector[1] + fightervector[0] + [0]
+            data.append(reversed_row)
 
 header = [
     "height1", "weight1", "reach1", "stance1", "age1",
