@@ -1,2 +1,2 @@
 # FOPI
-Fighter Outcome Predictability Index
+Fighter Loser Outcome Predictability Points Index
