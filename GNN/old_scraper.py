@@ -58,20 +58,28 @@ def parse_fighter(url):
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
-    info_box = soup.select_one('.b-list__info-box-left')
-    stats_box = soup.select_one('.b-list__info-box-right')
+    info_box = soup.select_one('.b-list__info-box.b-list__info-box_style_small-width')
 
-    if not info_box or not stats_box:
-        print("[ERROR] Fighter info not found.")
+    stats_left = soup.select_one('.b-list__info-box-left .b-list__info-box-left')
+    stats_right = soup.select_one('.b-list__info-box-left .b-list__info-box-right')
+
+    if not info_box or not stats_left or not stats_right:
+        print(f"[ERROR] Missing sections in: {url}")
         return None
 
     raw_data = {}
+
     for li in info_box.select('li'):
         if ':' in li.text:
             key, val = li.text.strip().split(':', 1)
             raw_data[key.strip()] = val.strip()
 
-    for li in stats_box.select('li'):
+    for li in stats_left.select('li'):
+        if ':' in li.text:
+            key, val = li.text.strip().split(':', 1)
+            raw_data[key.strip()] = val.strip()
+
+    for li in stats_right.select('li'):
         if ':' in li.text:
             key, val = li.text.strip().split(':', 1)
             raw_data[key.strip()] = val.strip()
@@ -79,8 +87,8 @@ def parse_fighter(url):
     try:
         height = height_to_inches(raw_data.get('Height', "0' 0\""))
         weight = weight_to_int(raw_data.get('Weight', '0 lbs.'))
-        reach = reach_to_int(raw_data.get('Reach', '0"'))
-        stance = stance_to_int(raw_data.get('STANCE', 'Orthodox'))
+        reach = reach_to_int(raw_data.get('Reach', '0"')) if 'Reach' in raw_data else 0
+        stance = stance_to_int(raw_data.get('STANCE', 'Orthodox')) if 'STANCE' in raw_data else 0
         age = date_to_age(raw_data.get('DOB', 'Jan 1, 2000'))
 
         slpm = float(raw_data.get('SLpM', 0))
@@ -92,12 +100,15 @@ def parse_fighter(url):
         td_def = int(raw_data.get('TD Def.', '0').replace('%', ''))
         sub_avg = float(raw_data.get('Sub. Avg.', 0))
 
-        return [height, weight, reach, stance, age,
-                slpm, str_acc, sapm, str_def,
-                td_avg, td_acc, td_def, sub_avg]
+        return [
+            height, weight, reach, stance, age,
+            slpm, str_acc, sapm, str_def,
+            td_avg, td_acc, td_def, sub_avg
+        ]
     except Exception as e:
-        print(f"[ERROR] Failed to parse: {e}")
+        print(f"[ERROR] Failed to parse values for {url}: {e}")
         return None
+
 
 def get_events(url):
     response = requests.get(url, headers=headers)
@@ -128,7 +139,7 @@ def save_to_csv(file_path, rows, header=None):
         writer = csv.writer(f)
         writer.writerows(rows)
 
-events = get_events("http://ufcstats.com/statistics/events/completed")
+events = get_events("http://ufcstats.com/statistics/events/completed") 
 # for link in events:
 #     print(f"{link}")    
 
@@ -139,21 +150,24 @@ events = get_events("http://ufcstats.com/statistics/events/completed")
 data = []
 
 for event in events:
+    print(f"Processing event: {event}")
     matchups = getmatchups(event)
     for matchup in matchups:
-        print(matchup)
+        print(f" Matchup: {matchup}")
         fightervector = []
         for fighter in matchup:
             vec = parse_fighter(fighter)
             if vec is None:
+                print("  [Skipped] Missing data for one fighter")
                 break
             fightervector.append(vec)
-        
+
         if len(fightervector) == 2:
             row = fightervector[0] + fightervector[1] + [1]
             data.append(row)
             reversed_row = fightervector[1] + fightervector[0] + [0]
             data.append(reversed_row)
+
 
 header = [
     "height1", "weight1", "reach1", "stance1", "age1",
@@ -164,4 +178,5 @@ header = [
     "td_avg2", "td_acc2", "td_def2", "sub_avg2",
     "result"
 ]
+
 save_to_csv("training_dat.csv", data, header=header)
